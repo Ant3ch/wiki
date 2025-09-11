@@ -1,0 +1,1 @@
+{"root":["./src/index.ts","./src/config/db.ts","./src/routes/config.ts","./src/routes/wiki.ts","./src/routes/wikifactory.ts","./src/utils/console.ts","./src/utils/errors.ts","./src/utils/polishdata.ts"],"version":"5.9.2"}

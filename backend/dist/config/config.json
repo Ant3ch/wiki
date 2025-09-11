@@ -1,0 +1,24 @@
+{
+    "profiles": {
+        "default": {
+            "coverts": [
+                "/wikiPage/Science",
+                "/wikiPage/Mathematiques",
+                "/wikiPage/Geographie",
+                "/wikiPage/Philosophie"
+            ],
+            "triggers": [
+                "!"
+            ],
+            "finalpage": "/wikiPage/Geographie"
+        },
+        "Antoine": {
+            "coverts": [
+                "wikiPage/banane"
+            ],
+            "triggers": [
+                "??"
+            ]
+        }
+    }
+}
