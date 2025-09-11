@@ -1,1 +1,1 @@
-export const HOST = "http://0.tcp.eu.ngrok.io:15727"
+export const HOST = "https://837e5ff2ce0e.ngrok-free.app"
