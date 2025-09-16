@@ -1,1 +1,1 @@
-export const HOST = "https://837e5ff2ce0e.ngrok-free.app"
+export const HOST = "http://localhost:3000";

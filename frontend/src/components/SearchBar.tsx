@@ -1,17 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { HOST } from '../Context/CONSTANTS';
+import type {Config} from "../types/ConfigTypes";
 
-// Types
-type Profile = {
-  coverts: string[];
-  triggers: string[];
-  finalpage?: string;
-};
-
-type Config = {
-  profiles: Record<string, Profile>;
-};
 
 // In-memory config
 

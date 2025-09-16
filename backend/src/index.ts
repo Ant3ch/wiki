@@ -22,6 +22,7 @@ app.use("/wikiPage", createWikiRouter("fr.m.wikipedia.org"));
 // French Wiktionary (mobile)
 app.use("/dicoPage", createWikiRouter("fr.m.wiktionary.org"));
 
+
 // config routes 
 app.use('/config',configRouter)
 

@@ -2,23 +2,25 @@
   "profiles": {
     "default": {
       "coverts": [
-        "/wikiPage/Science",
-        "/wikiPage/Mathematiques",
-        "/wikiPage/Geographie",
-        "/wikiPage/Philosophie"
+        "/wikipage/Science",
+        "/wikipage/Mathematiques",
+        "/wikipage/Geographie",
+        "/wikipage/Philosophie"
       ],
       "triggers": [
         "!"
       ],
-      "finalpage": "/wikiPage/Geographie"
+      "finalpage": "/wikipage/Geographie"
     },
-    "Antoine": {
+    "antech": {
       "coverts": [
-        "wikiPage/banane"
+        "/wikipage/pomme",
+        "/dicopage/poire"
       ],
       "triggers": [
-        "??"
-      ]
+        "kkk"
+      ],
+      "finalpage": "banane"
     }
   }
 }
