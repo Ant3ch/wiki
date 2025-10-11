@@ -184,7 +184,8 @@ useEffect(() => {
       <header
         className="w-full flex items-center px-4 py-2 border-1 border-gray-300 gap-3"
         style={{
-          background: window.innerWidth >= 768 ? "#f8f9fa" : "#e5e7eb",
+          // force mobile background always
+          background: "#e5e7eb",
           boxShadow: "none",
           marginTop: 0,
           paddingTop: 0,
@@ -207,15 +208,15 @@ useEffect(() => {
         </button>
         {/* Icons */}
         <div className="flex items-center gap-2" onClick={()=>navigate('/')}>
-          {/* Mobile: Only wordmark */}
+          {/* Mobile: Only wordmark (show always) */}
           <img
             src="https://fr.wikipedia.org/static/images/mobile/copyright/wikipedia-wordmark-fr.svg"
             alt="Wikipédia"
-            className="h-8 block md:hidden"
+            className="h-8"
             style={{ minHeight: "18px", width: "119px" }}
           />
-          {/* Desktop: Logo, wordmark, tagline */}
-          <div className="hidden md:flex items-center gap-2">
+          {/* Desktop: Logo, wordmark, tagline (hidden to force mobile style) */}
+          <div className="hidden">
             <img
               src="https://upload.wikimedia.org/wikipedia/commons/6/63/Wikipedia-logo.png"
               alt="Wikipedia logo"
@@ -238,8 +239,9 @@ useEffect(() => {
             </div>
           </div>
         </div>
-        {/* Desktop search bar */}
-        <form className="flex-1 items-center justify-center mx-4 hidden md:flex" role="search">
+
+        {/* Desktop search bar (hidden to force mobile-only UX) */}
+        <form className="hidden" role="search">
           <div className="relative w-full max-w-md flex">
             <input
               type="search"
@@ -271,22 +273,23 @@ useEffect(() => {
           </div>
         </form>
         
-        {/* Magnifying glass icon on mobile */}
-        <div className="flex md:hidden items-center ml-auto">
-          <button
-            className="flex items-center justify-center p-2 rounded hover:bg-gray-100"
-            aria-label="Open search"
-            style={{ width: "38px", height: "38px", minWidth: "38px", minHeight: "38px" }}
-            onClick={handleSearchButton}
-          >
-            <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="7" stroke="#222" strokeWidth="2" />
-              <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="#222" strokeWidth="2" strokeLinecap="round" />
-            </svg>
-          </button>
-        </div>
-        {/* User links (desktop only) */}
-        <nav className="items-center gap-4 ml-2 hidden md:flex">
+        {/* Magnifying glass icon on mobile (now always visible) */}
+        <div className="flex items-center ml-auto">
+           <button
+             className="flex items-center justify-center p-2 rounded hover:bg-gray-100"
+             aria-label="Open search"
+             style={{ width: "38px", height: "38px", minWidth: "38px", minHeight: "38px" }}
+             onClick={handleSearchButton}
+           >
+             <svg width="24" height="24" fill="none" viewBox="0 0 24 24">
+               <circle cx="11" cy="11" r="7" stroke="#222" strokeWidth="2" />
+               <line x1="16.5" y1="16.5" x2="21" y2="21" stroke="#222" strokeWidth="2" strokeLinecap="round" />
+             </svg>
+           </button>
+         </div>
+
+        {/* User links (force hidden - mobile menu contains links) */}
+        <nav className="hidden">
           <a href="/w/index.php?title=Special:CreateAccount" className="text-blue-700 hover:underline text-sm">
             Créer un compte
           </a>
