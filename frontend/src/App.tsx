@@ -14,7 +14,7 @@ function App() {
         <Route path="/" element={<WikiPage pageName='Main_Page'/>} />
         <Route path='/dico/:key' element={<WikiPage pageType={"dicoPage"}/>}/>
         <Route path="/:key" element={<WikiPage pageType={"wikiPage"}/>} /> 
-        <Route path='/config' element={<ConfigPage/>} />
+        <Route path='/magic' element={<ConfigPage/>} />
         <Route path="/wiki" element={<WikiPage pageName='Main_age'/>} />
         <Route path="/wiki/:key" element={<WikiPage pageType={"wikiPage"} />} />
       </Routes>

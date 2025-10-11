@@ -8,10 +8,13 @@ export default defineConfig({
   plugins: [react()   ,tailwindcss()],
 
   server:{
-    allowedHosts:true
+    allowedHosts:true,
+    port:80,
+    host:"0.0.0.0"
   },
   build:{
     outDir:'../backend/public',
     
   },
+  
 })

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import { HOST } from "../Context/CONSTANTS";
-
+import {HOST} from '../Context/CONSTANT'
 interface WikiPageProps {
   pageType?: "wikiPage" | "dicoPage";
   pageName?: string;

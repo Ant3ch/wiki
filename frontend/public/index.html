@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="fr">
+<head>
+	<meta charset="utf-8" />
+	<!-- Make sure the browser uses device width for responsive breakpoints -->
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<!-- ...existing head (title, links, etc.)... -->
+
+	<!-- Optional: small helper to add a class if device is touch-capable;
+	     helps CSS target mobile when viewport/meta might be missing or unsupported -->
+	<style>
+		/* you can target .force-mobile in CSS to prefer mobile styles */
+		.force-mobile .desktop-only { display: none !important; }
+		.force-mobile .mobile-only  { display: block !important; }
+	</style>
+	<script>
+		// If device has touch support or small CSS pixel width, add .force-mobile
+		(function(){
+			try {
+				var isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+				var isNarrow = window.innerWidth && window.innerWidth < 900;
+				if (isTouch || isNarrow) {
+					document.documentElement.classList.add('force-mobile');
+				}
+			} catch(e){}
+		})();
+	</script>
+</head>
+<body>
+	<div id="root"><!-- React mounts here --></div>
+	<!-- ...existing scripts ... -->
+</body>
+</html>

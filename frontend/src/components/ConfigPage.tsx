@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { HOST } from "../Context/CONSTANTS";
 import type { error, Config } from "../types/ConfigTypes";
-
+import {HOST} from '../Context/CONSTANT'
 
 const PAGE_TYPES = [
   { label: "WikiPage", value: "wikipage" },

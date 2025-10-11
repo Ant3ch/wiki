@@ -10,7 +10,7 @@ const WikiFactory_1 = require("./routes/WikiFactory");
 const Config_1 = __importDefault(require("./routes/Config"));
 const body_parser_1 = __importDefault(require("body-parser"));
 const app = (0, express_1.default)();
-const PORT = 3000;
+const PORT = 80;
 app.use((0, cors_1.default)({
     origin: "*",
     optionsSuccessStatus: 200,

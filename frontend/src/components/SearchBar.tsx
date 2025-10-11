@@ -1,10 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { HOST } from '../Context/CONSTANTS';
 import type {Config} from "../types/ConfigTypes";
-
-
-// In-memory config
+import {HOST} from '../Context/CONSTANT'
 
 function SearchBar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -273,6 +270,7 @@ useEffect(() => {
             />
           </div>
         </form>
+        
         {/* Magnifying glass icon on mobile */}
         <div className="flex md:hidden items-center ml-auto">
           <button

@@ -4,13 +4,16 @@ import path from "path";
 import { createWikiRouter } from "./routes/WikiFactory";
 import configRouter from "./routes/Config"
 import bodyParser from "body-parser";
+import https from "https";
+import fs from "fs";
 
 const app = express();
-const PORT = 3000;
+const PORT = 80;
 app.use(cors({
   origin: "*",
   optionsSuccessStatus: 200,
   methods: ["POST", "GET", "UPDATE", "DELETE"],
+  
 }));
 
 // --- API routes ---
@@ -34,6 +37,13 @@ app.use((req, res) => {
   res.sendFile(path.join(__dirname, "../public/index.html"));
 });
 
-app.listen(PORT, () => {
-  console.log(`✅ Backend running on http://localhost:${PORT}`);
+
+const server = https.createServer({
+  // Provide your SSL certificate and key here
+  key: fs.readFileSync(path.join(__dirname, "../certs/key.pem")),
+  cert: fs.readFileSync(path.join(__dirname, "../certs/cert.pem"))
+}, app);
+
+server.listen(PORT, () => {
+  console.log(`✅ Backend running on https://localhost:${PORT}`);
 });
