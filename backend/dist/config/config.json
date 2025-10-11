@@ -14,8 +14,8 @@
         },
         "antech": {
             "coverts": [
-                "/wikipage/pomme",
-                "/dicopage/poire"
+                "pomme",
+                "poire"
             ],
             "triggers": [
                 "kkk"

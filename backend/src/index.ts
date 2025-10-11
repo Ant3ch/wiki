@@ -38,12 +38,6 @@ app.use((req, res) => {
 });
 
 
-const server = https.createServer({
-  // Provide your SSL certificate and key here
-  key: fs.readFileSync(path.join(__dirname, "../certs/key.pem")),
-  cert: fs.readFileSync(path.join(__dirname, "../certs/cert.pem"))
-}, app);
-
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`✅ Backend running on https://localhost:${PORT}`);
 });
