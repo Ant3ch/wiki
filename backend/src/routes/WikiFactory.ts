@@ -11,12 +11,27 @@ async function fetchAndPolish(
   path: string,
   polishOptions: { letter?: string; position?: number, finalPage?:string } = {}
 ): Promise<string> {
+  // Request the explicit /wiki/<title> path when a title is provided.
+  // Some Wikipedia endpoints return desktop markup for the host root unless
+  // the request looks like a mobile browser or targets the /wiki/... path.
   let url = `https://${host}/`;
-  if (path && path !== "Main_Page") {
-    url += `wiki/${encodeURIComponent(path)}`;
+  if (path) {
+    url = `https://${host}/wiki/${encodeURIComponent(path)}`;
   }
 
-  const response = await fetch(url);
+  // Use a mobile user-agent and sensible Accept/Accept-Language headers so
+  // the server returns the mobile-styled HTML (especially important for the main page).
+  const MOBILE_UA =
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1";
+  const fetchOptions = {
+    headers: {
+      "User-Agent": MOBILE_UA,
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "fr",
+    },
+  };
+
+  const response = await fetch(url, fetchOptions);
   let html = await response.text();
 
   // Rewrite all relative links to absolute
@@ -102,10 +117,19 @@ wikiRouter.get("/:title/:finalPage", async (req, res) => {
       ConsoleLogger.info("Searched -> " +'"' +query+ '"')
       // ⚠️ For search, host must be without `m.` (mobile)
       const apiHost = host.replace("m.", "");
+      // Use a desktop-like UA for API queries (or reuse the mobile UA if desired).
+      const API_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0 Safari/537.36";
+      const apiFetchOptions = {
+        headers: {
+          "User-Agent": API_UA,
+          "Accept": "application/json",
+        },
+      };
       const response = await fetch(
         `https://${apiHost}/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(
           query
-        )}&format=json`
+        )}&format=json`,
+        apiFetchOptions
       );
       const data = await response.json();
       res.json(data);
@@ -114,6 +138,6 @@ wikiRouter.get("/:title/:finalPage", async (req, res) => {
       res.status(500).send("Erreur serveur pendant la recherche");
     }
   });
-
+ 
   return wikiRouter;
 }
