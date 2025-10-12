@@ -11,7 +11,7 @@ export default async function polishData(
   html = html
     .replace('<div class="vector-header-container">', '<div class="vector-header-container" style="display:none">')
     .replace('<header class="header-container header-chrome">', '<header class="header-container header-chrome" style="display:none">');
-
+  
   const dom = new JSDOM(html);
   const document = dom.window.document;
 

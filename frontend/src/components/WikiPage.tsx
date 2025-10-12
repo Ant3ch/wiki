@@ -64,10 +64,23 @@ const WikiPage: React.FC<WikiPageProps> = ({
       endpoint = `${HOST}/${pageType}/${key}`;
     }
 
+    const clientStart = performance.now();
     fetch(endpoint)
       .then((res) => {
+        const clientFirstByte = performance.now();
+        // Read server timing headers if present
+        const serverFetch = res.headers.get("X-Fetch-Ms");
+        const serverRead = res.headers.get("X-Read-Ms");
+        const serverPolish = res.headers.get("X-Polish-Ms");
+        const serverTotal = res.headers.get("X-Total-Ms");
+        const serverSize = res.headers.get("X-Result-Size");
+        console.info(`[WikiPage] request to ${endpoint} first byte after ${(clientFirstByte - clientStart).toFixed(0)}ms; server fetch=${serverFetch}ms read=${serverRead}ms polish=${serverPolish}ms total=${serverTotal}ms size=${serverSize}B`);
         if (!res.ok) throw new Error("Erreur lors du chargement");
-        return res.text();
+        return res.text().then(text => {
+          const clientEnd = performance.now();
+          console.info(`[WikiPage] full body received ${(clientEnd - clientStart).toFixed(0)}ms`);
+          return text;
+        });
       })
       .then((val) => {
         localStorage.setItem("lastFetchedPage", key);
