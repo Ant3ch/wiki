@@ -8,7 +8,7 @@ import https from "https";
 import fs from "fs";
 
 const app = express();
-const PORT = 80;
+const PORT = 443;
 app.use(cors({
   origin: "*",
   optionsSuccessStatus: 200,

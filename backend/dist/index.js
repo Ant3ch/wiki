@@ -12,7 +12,7 @@ const body_parser_1 = __importDefault(require("body-parser"));
 const https_1 = __importDefault(require("https"));
 const fs_1 = __importDefault(require("fs"));
 const app = (0, express_1.default)();
-const PORT = 80;
+const PORT = 443;
 app.use((0, cors_1.default)({
     origin: "*",
     optionsSuccessStatus: 200,
