@@ -9,7 +9,7 @@ export default defineConfig({
 
   server:{
     allowedHosts:true,
-    port:80,
+    port:5173,
     host:"0.0.0.0"
   },
   build:{

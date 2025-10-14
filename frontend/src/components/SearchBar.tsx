@@ -136,7 +136,13 @@ useEffect(() => {
         oldLetter !== letterPosition ||
         oldSecret !== matchedTrigger
       ) {
-        localStorage.clear();
+        // Only clear per-reveal keys. Preserve profile metadata (finalpage, profileName, coverts, triggers)
+        localStorage.removeItem("word");
+        localStorage.removeItem("letterPosition");
+        localStorage.removeItem("secret");
+        localStorage.removeItem("currentLetterIndex");
+        localStorage.removeItem("lastFetchedPage");
+        localStorage.removeItem("decrementDoneForPage");
       }
 
       if (revealedString) localStorage.setItem("word", revealedString);
