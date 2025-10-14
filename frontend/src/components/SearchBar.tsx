@@ -411,11 +411,37 @@ function SearchBar() {
   }, [search, mobileSearchOpen, cachedConfig]);
 
 
+  // helper to adjust currentLetterIndex in localStorage (clamped >= 0)
+  const adjustCurrentLetterIndex = (delta: number) => {
+    try {
+      const cur = parseInt(localStorage.getItem("currentLetterIndex") || "0", 10) || 0;
+      let next = cur + delta;
+      if (next < 0) next = 0;
+      localStorage.setItem("currentLetterIndex", String(next));
+      DEBUG && console.log("adjustCurrentLetterIndex", cur, "=>", next);
+    } catch (err) {
+      DEBUG && console.warn("failed to adjust currentLetterIndex", err);
+    }
+  };
+
+  // keep counter in sync when user navigates browser history (back/forward)
+  useEffect(() => {
+    const onPopState = () => {
+      adjustCurrentLetterIndex(-1);
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
   function handleBackButton(_event: React.MouseEvent<HTMLButtonElement>): void {
+    // restore one when user closes the search modal with the back arrow
+    adjustCurrentLetterIndex(1);
     setMobileSearchOpen(false);
   }
   
   function handleSearchButton(_event: React.MouseEvent<HTMLButtonElement>): void {
+    // user is about to change/search — subtract one so the letter counter stays on track
+    adjustCurrentLetterIndex(-1);
     setMobileSearchOpen(true);
     setTimeout(() => {
       inputRef.current?.focus();
