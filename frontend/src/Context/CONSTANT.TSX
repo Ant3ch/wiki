@@ -1,2 +1,2 @@
-export const HOST ="http://88.183.58.29:80";
+export const HOST ="https://wikipedia.sytes.net";
 export const DEBUG = false;
