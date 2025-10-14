@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import type {Config} from "../types/ConfigTypes";
-import {HOST} from '../Context/CONSTANT'
+import {HOST,DEBUG} from '../Context/CONSTANT'
 
 function SearchBar() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -181,7 +181,7 @@ useEffect(() => {
     .catch(() => setResults([]))
     .finally(() => {
       setLoading(false);
-      console.log("localStorage after profile update:", localStorage);
+      DEBUG && console.log("localStorage after profile update:", localStorage);
     });
 }, [search, mobileSearchOpen, cachedConfig]);
 

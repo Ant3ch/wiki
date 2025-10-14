@@ -12,36 +12,67 @@ const Console_1 = require("../utils/Console");
  * Fetch, rewrite relative links, and polish the HTML
  */
 async function fetchAndPolish(host, path, polishOptions = {}) {
-    // Request the explicit /wiki/<title> path when a title is provided.
-    // Some Wikipedia endpoints return desktop markup for the host root unless
-    // the request looks like a mobile browser or targets the /wiki/... path.
+    const startTotal = Date.now();
+    // Build URL
     let url = `https://${host}/`;
     if (path) {
         url = `https://${host}/wiki/${encodeURIComponent(path)}`;
     }
-    // Use a mobile user-agent and sensible Accept/Accept-Language headers so
-    // the server returns the mobile-styled HTML (especially important for the main page).
+    // Mobile UA and headers
     const MOBILE_UA = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.0 Mobile/15E148 Safari/604.1";
     const fetchOptions = {
         headers: {
             "User-Agent": MOBILE_UA,
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "fr",
+            "Accept-Encoding": "gzip, deflate, br",
         },
     };
-    const response = await fetch(url, fetchOptions);
-    let html = await response.text();
-    // Rewrite all relative links to absolute
-    html = html.replace(/href="\/wiki\//g, `href="https://${host}/wiki/`);
+    // Timeout support
+    const TIMEOUT_MS = 10000;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    fetchOptions.signal = controller.signal;
+    const tFetchStart = Date.now();
+    let response;
+    try {
+        response = await fetch(url, fetchOptions);
+    }
+    catch (err) {
+        clearTimeout(timeout);
+        // ConsoleLogger.info(`[fetchAndPolish] fetch failed for ${url}: ${String(err)}`);
+        throw err;
+    }
+    const tFetchEnd = Date.now();
+    const status = response.status || 0;
+    // read response text and measure
+    const tReadStart = Date.now();
+    const htmlRaw = await response.text();
+    const tReadEnd = Date.now();
+    clearTimeout(timeout);
+    // Minimal rewrites
+    let html = htmlRaw.replace(/href="\/wiki\//g, `href="https://${host}/wiki/`);
     html = html.replace(/href="\/w\//g, `href="https://${host}/w/`);
     html = html.replace(/src="\/w\//g, `src="https://${host}/w/`);
-    if (polishOptions.finalPage) {
-        html = await (0, PolishData_1.default)(html, undefined, undefined, polishOptions.finalPage);
-    }
-    else {
-        html = await (0, PolishData_1.default)(html, polishOptions.letter, polishOptions.position);
-    }
-    return html;
+    // Polish timing
+    const tPolishStart = Date.now();
+    html = await (0, PolishData_1.default)(html, polishOptions.letter, polishOptions.position, polishOptions.finalPage);
+    const tPolishEnd = Date.now();
+    const totalMs = Date.now() - startTotal;
+    const metrics = {
+        fetchMs: tFetchEnd - tFetchStart,
+        readMs: tReadEnd - tReadStart,
+        polishMs: tPolishEnd - tPolishStart,
+        totalMs,
+        size: Buffer.byteLength(html, "utf8"),
+        status,
+        url,
+    };
+    /*  ConsoleLogger.info(
+        `[fetchAndPolish] ${url} status=${status} fetch=${metrics.fetchMs}ms read=${metrics.readMs}ms polish=${metrics.polishMs}ms total=${metrics.totalMs}ms size=${metrics.size}B`
+      );
+      */
+    return { html, metrics };
 }
 /**
  * Factory to generate a wiki-like router (Wikipedia / Wiktionary)
@@ -53,7 +84,14 @@ function createWikiRouter(host) {
         try {
             const title = req.params.title;
             Console_1.ConsoleLogger.info("WikiPage -> " + title);
-            const html = await fetchAndPolish(host, title);
+            const { html, metrics } = await fetchAndPolish(host, title);
+            // Forward simple timing headers to client for debugging
+            res.set("X-Fetch-Ms", String(metrics.fetchMs));
+            res.set("X-Read-Ms", String(metrics.readMs));
+            res.set("X-Polish-Ms", String(metrics.polishMs));
+            res.set("X-Total-Ms", String(metrics.totalMs));
+            res.set("X-Result-Size", String(metrics.size));
+            res.set("X-Remote-Status", String(metrics.status));
             res.send(html);
         }
         catch (err) {
@@ -73,10 +111,16 @@ function createWikiRouter(host) {
             if (letter.length !== 1 || !/[a-zA-Z]/.test(letter)) {
                 return res.status(400).send("Invalid letter parameter");
             }
-            const html = await fetchAndPolish(host, title, {
+            const { html, metrics } = await fetchAndPolish(host, title, {
                 letter,
                 position: letterposition,
             });
+            res.set("X-Fetch-Ms", String(metrics.fetchMs));
+            res.set("X-Read-Ms", String(metrics.readMs));
+            res.set("X-Polish-Ms", String(metrics.polishMs));
+            res.set("X-Total-Ms", String(metrics.totalMs));
+            res.set("X-Result-Size", String(metrics.size));
+            res.set("X-Remote-Status", String(metrics.status));
             res.send(html);
         }
         catch (err) {
@@ -89,7 +133,13 @@ function createWikiRouter(host) {
             const { title, finalPage } = req.params;
             console.info("Wiki Page -> " + title + "\t + final page ->" + finalPage);
             // Fetch and polish the HTML, passing finalPage
-            const html = await fetchAndPolish(host, title, { finalPage });
+            const { html, metrics } = await fetchAndPolish(host, title, { finalPage });
+            res.set("X-Fetch-Ms", String(metrics.fetchMs));
+            res.set("X-Read-Ms", String(metrics.readMs));
+            res.set("X-Polish-Ms", String(metrics.polishMs));
+            res.set("X-Total-Ms", String(metrics.totalMs));
+            res.set("X-Result-Size", String(metrics.size));
+            res.set("X-Remote-Status", String(metrics.status));
             res.send(html);
         }
         catch (err) {

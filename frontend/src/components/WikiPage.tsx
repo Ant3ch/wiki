@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router";
-import {HOST} from '../Context/CONSTANT'
+import {HOST,DEBUG} from '../Context/CONSTANT'
 interface WikiPageProps {
   pageType?: "wikiPage" | "dicoPage";
   pageName?: string;
@@ -74,11 +74,11 @@ const WikiPage: React.FC<WikiPageProps> = ({
         const serverPolish = res.headers.get("X-Polish-Ms");
         const serverTotal = res.headers.get("X-Total-Ms");
         const serverSize = res.headers.get("X-Result-Size");
-        console.info(`[WikiPage] request to ${endpoint} first byte after ${(clientFirstByte - clientStart).toFixed(0)}ms; server fetch=${serverFetch}ms read=${serverRead}ms polish=${serverPolish}ms total=${serverTotal}ms size=${serverSize}B`);
+        DEBUG && console.info(`[WikiPage] request to ${endpoint} first byte after ${(clientFirstByte - clientStart).toFixed(0)}ms; server fetch=${serverFetch}ms read=${serverRead}ms polish=${serverPolish}ms total=${serverTotal}ms size=${serverSize}B`);
         if (!res.ok) throw new Error("Erreur lors du chargement");
         return res.text().then(text => {
           const clientEnd = performance.now();
-          console.info(`[WikiPage] full body received ${(clientEnd - clientStart).toFixed(0)}ms`);
+          DEBUG && console.info(`[WikiPage] full body received ${(clientEnd - clientStart).toFixed(0)}ms`);
           return text;
         });
       })
