@@ -39,8 +39,10 @@ const WikiPage: React.FC<WikiPageProps> = ({
     const letter = word ? word.charAt(currentLetterIndex) : "";
     if (word) localStorage.setItem("currentLetter", letter);
 
-    let posNum = parseInt(localStorage.getItem("letterPosition") || "0", 10);
-    if (isNaN(posNum) || posNum < 0) posNum = 0;
+    // Use presence check for letterPosition key so we can detect per-letter requests
+    const posNumStr = localStorage.getItem("letterPosition"); // null if not set
+    let posNum = posNumStr !== null ? parseInt(posNumStr, 10) : null;
+    if (posNum !== null && (isNaN(posNum) || posNum < 0)) posNum = 0;
 
     // Determine finalPage and target type
     let finalPage = localStorage.getItem("finalpage") ?? "philosophie";
@@ -52,13 +54,14 @@ const WikiPage: React.FC<WikiPageProps> = ({
 
     let endpoint: string;
 
-    if (word && currentLetterIndex >= wordLength) {
+    // Determine whether this request should fetch a letter page or the final page.
+    const isFinal = Boolean(word && currentLetterIndex >= wordLength);
+    if (isFinal) {
       // Finished all letters → final page
       endpoint = `${HOST}/${target}/${key}/${finalPage}/`;
-      localStorage.clear()
- } else if (word && localStorage.getItem("letterPosition") !== null) {
-      // Regular letter endpoint
-      endpoint = `${HOST}/${pageType}/${key}/${letter}/${posNum}`;
+    } else if (word && posNumStr !== null) {
+      // Per-letter request (use posNumStr as stored)
+      endpoint = `${HOST}/${pageType}/${key}/${letter}/${posNumStr}`;
     } else {
       // Regular page endpoint
       endpoint = `${HOST}/${pageType}/${key}`;
@@ -83,17 +86,26 @@ const WikiPage: React.FC<WikiPageProps> = ({
         });
       })
       .then((val) => {
+        // On success, set HTML and update reveal state.
+        setHtml(val);
         localStorage.setItem("lastFetchedPage", key);
 
-        // Increment currentLetterIndex if counting letters
-        if (word && currentLetterIndex < wordLength) {
-          localStorage.setItem("currentLetterIndex", (currentLetterIndex + 1).toString());
-          currentLetterIndex += 1;
+        if (!isFinal && word) {
+          // Increment currentLetterIndex for next letter request
+          const nextIndex = currentLetterIndex + 1;
+          localStorage.setItem("currentLetterIndex", nextIndex.toString());
+          currentLetterIndex = nextIndex;
         }
 
-        setHtml(val);
-
-        // Clear local storage if we're on the final page and word is complete
+        if (isFinal) {
+          // Clear only reveal-related keys after final page has been shown
+          localStorage.removeItem("word");
+          localStorage.removeItem("letterPosition");
+          localStorage.removeItem("secret");
+          localStorage.removeItem("currentLetterIndex");
+          localStorage.removeItem("decrementDoneForPage");
+          // keep global profile metadata (coverts/triggers/finalpage/profileName) intact
+        }
 
       })
       .catch((err) => setError(err.message));

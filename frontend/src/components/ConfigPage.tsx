@@ -36,6 +36,34 @@ const ConfigPage: React.FC = () => {
     setEditValue({ param, value });
   };
 
+  // Toggle instantReplace for the selected profile
+  const handleToggleInstantReplace = async (enabled: boolean) => {
+    if (!selectedProfile || selectedProfile === "default") return;
+    setMessage("Enregistrement...");
+    setErrorObj(null);
+    try {
+      const res = await fetch(`${HOST}/config/${selectedProfile}/instantReplace`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: enabled }),
+      });
+      if (res.ok) {
+        setMessage("Paramètre mis à jour !");
+        const cfg = await fetch(`${HOST}/config`).then(r => r.json());
+        setConfig(cfg);
+      } else {
+        const errText = await res.text();
+        let parsedError: error;
+        try { parsedError = JSON.parse(errText); } catch { parsedError = { code: 0, message: errText }; }
+        setErrorObj(parsedError);
+        setMessage(`Error ${parsedError.code} : ${parsedError.message}`);
+      }
+    } catch (err) {
+      setErrorObj({ code: 0, message: String(err) });
+      setMessage("Error réseau: " + String(err));
+    }
+  };
+
   // Submit update
   const handleUpdate = async () => {
     if (!editValue.param || !selectedProfile) return;
@@ -221,6 +249,22 @@ const ConfigPage: React.FC = () => {
           disabled={selectedProfile === "default"}
           active={editValue.param === "triggers"}
         />
+
+        {/* instantReplace checkbox */}
+        <div style={{ marginTop: 8, marginBottom: 16, display: "flex", alignItems: "center", gap: 12 }}>
+          <label style={{ fontWeight: 500, color: "#34495e" }}>Remplacement instantané :</label>
+          <input
+            type="checkbox"
+            checked={Boolean(profile.instantReplace)}
+            onChange={(e) => handleToggleInstantReplace(e.target.checked)}
+            disabled={selectedProfile === "default"}
+            aria-label="instantReplace"
+            style={{ width: 18, height: 18, cursor: selectedProfile === "default" ? "not-allowed" : "pointer" }}
+          />
+          <span style={{ color: "#6b7280", fontSize: 14 }}>
+            Si activé, la page covert remplace instantanément le texte ; sinon la révélation lettre par lettre est utilisée.
+          </span>
+        </div>
       </div>
       {message && (
         <div

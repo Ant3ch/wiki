@@ -12,179 +12,415 @@ function SearchBar() {
   const inputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
- // Define covert pages
+  // Define covert pages
 
-const [cachedConfig, setCachedConfig] = useState<Config | null>(null);
-// WILL DECREMENT OF 1 WHEN CLICKING ON MAGNYFING GLASS IF USER DON4T FIND ANY LINKS
-// because visiting a page add one to the current letter index , what we do is removing 1 and flagg the page so that it prevent from removing more than 1
-const handleSearchButton = () => {
-  const storedIndex = localStorage.getItem("currentLetterIndex");
-  const currentPage = localStorage.getItem("lastFetchedPage"); // or whatever identifies the current page
-  const decrementFlag = localStorage.getItem("decrementDoneForPage");
+  const [cachedConfig, setCachedConfig] = useState<Config | null>(null);
 
-  // Only decrement if not already done for this page
-  if (storedIndex && currentPage && decrementFlag !== currentPage) {
-    let index = parseInt(storedIndex, 10);
+  // Buffer used to detect multi-character triggers without relying on rawTyped state
+  const detectionRef = useRef<string>('');
+  const [maxTriggerLen, setMaxTriggerLen] = useState<number>(0);
 
-    // Decrement by 1, minimum 0
-    index = Math.max(index - 1, 0);
-    localStorage.setItem("currentLetterIndex", index.toString());
+  // instantReplace mode for the currently selected profile
+  const [instantReplace, setInstantReplace] = useState<boolean>(false);
 
-    // Mark that we already decremented for this page
-    localStorage.setItem("decrementDoneForPage", currentPage);
-  }
-
-  setMobileSearchOpen(true);
-};
-const handleBackButton = () => {
-  const storedIndex = localStorage.getItem("currentLetterIndex");
-
-  if (storedIndex) {
-    let index = parseInt(storedIndex, 10);
-
-    // Increment by 1
-    index = index + 1;
-
-    localStorage.setItem("currentLetterIndex", index.toString());
-
-    // Clear the decrement flag for this page so it can decrement again later
-    localStorage.removeItem("decrementDoneForPage");
-  }
-
-  setMobileSearchOpen(false);
-};
-useEffect(() => {
-  // Fetch config only once
-  if (!cachedConfig) {
-    fetch(HOST + "/config/", { method: "GET" })
-      .then((res) => res.json())
-      .then((config: Config) => setCachedConfig(config))
-      .catch(() => console.error("Failed to load config"));
-  }
-}, [cachedConfig]);
-
-useEffect(() => {
-  if (!mobileSearchOpen || !search.trim() || !cachedConfig) {
-    setResults([]);
-    return;
-  }
-
-  let newSearch = search;
-  let shouldReplace = false;
-
-  const profiles = cachedConfig.profiles || {};
-  const defaultProfile = profiles.default || {};
-
-  // 🔹 Keep existing profile if already set in localStorage
-  let activeProfileName: string = localStorage.getItem("profileName") || "default";
-  let activeProfile = profiles[activeProfileName] || defaultProfile;
-
-  // 🔹 Detect profile by trigger in the current search
-  for (const [name, profile] of Object.entries(profiles)) {
-    if (profile.triggers?.some((trigger) => search.startsWith(trigger))) {
-      activeProfileName = name;
-      activeProfile = {
-        coverts: profile.coverts ?? defaultProfile.coverts,
-        triggers: profile.triggers ?? defaultProfile.triggers,
-        finalpage: profile.finalpage, // optional
-      };
-      break; // stop at first matched trigger
+  useEffect(() => {
+    if (!cachedConfig?.profiles) {
+      setMaxTriggerLen(0);
+      return;
     }
-  }
+    let max = 0;
+    for (const p of Object.values(cachedConfig.profiles)) {
+      for (const t of (p.triggers || [])) {
+        if (t.length > max) max = t.length;
+      }
+    }
+    setMaxTriggerLen(max);
+  }, [cachedConfig]);
+ 
+  // ----- NEW state for hidden typing feature -----
+  const [hiddenTypingActive, setHiddenTypingActive] = useState(false);
+  const [rawTyped, setRawTyped] = useState(''); // includes trigger + subsequent secret keystrokes
+  const [covertPage, setCovertPage] = useState(''); // cleaned covert page used for visible replacement
+  const [triggerToken, setTriggerToken] = useState(''); // matched trigger string
 
-  // 🔹 Save profile info to localStorage
-  if (activeProfile.coverts) localStorage.setItem("coverts", JSON.stringify(activeProfile.coverts));
-  if (activeProfile.triggers) localStorage.setItem("triggers", JSON.stringify(activeProfile.triggers));
-  if (activeProfile.finalpage !== undefined) {
-    localStorage.setItem("finalpage", activeProfile.finalpage);
-  } else {
-    localStorage.removeItem("finalpage"); // remove old value if any
-  }
-  localStorage.setItem("profileName", activeProfileName);
+  // Helper to clean a covert page entry into a simple page string
+  const cleanCovert = (p: string) => {
+    return p
+      .toString()
+      .toLocaleLowerCase()
+      .replace("/wikipage/", "")
+      .replace("/dicopage/", "")
+      .replace("dicopage/", "")
+      .replace("wikipage/", "");
+  };
 
-  // 🔹 Parse trigger + position (letter or number)
-  const matchedTrigger = activeProfile.triggers?.find((trigger) =>
-    search.startsWith(trigger)
-  );
+  // // Helper to find a profile by a trigger string
+  // const findProfileForTrigger = (trig: string) => {
+  //   if (!cachedConfig?.profiles) return null;
+  //   for (const [name, profile] of Object.entries(cachedConfig.profiles)) {
+  //     if (profile.triggers?.includes(trig)) return { name, profile };
+  //   }
+  //   return null;
+  // };
 
-  if (matchedTrigger) {
-    const afterTrigger = search.slice(matchedTrigger.length);
-    let letterPosition = "";
+  // When hidden typing starts: pick a covert page from that profile and persist minimal metadata
+  const startHiddenTyping = (matchedTrigger: string, profileName: string, profileObj: any) => {
+    const coverts = profileObj.coverts || [];
+    if (!coverts.length) return;
+    const randomPage = coverts[Math.floor(Math.random() * coverts.length)];
+    const cleaned = cleanCovert(randomPage);
+    setCovertPage(cleaned);
 
-    if (/^[a-f]/i.test(afterTrigger[0])) {
-      // If first char after trigger is a letter a-f
-      letterPosition = String("abcdef".indexOf(afterTrigger[0].toLowerCase()) + 1);
+    // set the trigger and raw typed immediately (prevents race/stale state)
+    setTriggerToken(matchedTrigger);
+    setRawTyped(matchedTrigger);
+
+    // set instantReplace mode from profile (default false) and persist
+    const inst = Boolean(profileObj.instantReplace);
+    setInstantReplace(inst);
+    try { localStorage.setItem("instantReplace", inst ? "1" : "0"); } catch {}
+
+    // Enter letter-by-letter hidden typing mode.
+    setHiddenTypingActive(true);
+
+    // persist profile metadata and reset per-reveal state
+    try {
+      if (profileObj.coverts) localStorage.setItem("coverts", JSON.stringify(profileObj.coverts));
+      if (profileObj.triggers) localStorage.setItem("triggers", JSON.stringify(profileObj.triggers));
+      localStorage.setItem("secret", matchedTrigger);
+      localStorage.setItem("profileName", profileName);
+      // reset per-reveal keys
+      localStorage.removeItem("word");
+      localStorage.removeItem("letterPosition");
+      localStorage.removeItem("currentLetterIndex");
+      localStorage.setItem("currentLetterIndex", "0");
+      localStorage.setItem("covertPage", cleaned);
+      localStorage.setItem("hiddenTyped", matchedTrigger);
+    } catch (err) {
+      DEBUG && console.log("localStorage error", err);
+    }
+
+    // For non-instant profiles: reveal covert prefix letter-by-letter.
+    // For multi-char triggers reveal first N letters where N = trigger length.
+    // For instantReplace profiles: show the typed trigger immediately (user-visible typing).
+    if (inst) {
+      setSearch(matchedTrigger);
     } else {
-      // If first char(s) after trigger is a number
-      const match = afterTrigger.match(/^(\d+)/);
-      if (match) letterPosition = match[1];
+      setSearch(cleaned.slice(0, matchedTrigger.length));
     }
 
-    // Extract revealed word
-    const rest = afterTrigger.slice(letterPosition.length);
-    const revealedMatch = rest.match(/^([^\s]*)/);
-    const revealedString = revealedMatch ? revealedMatch[1] : "";
-    const afterRevealed = rest.slice(revealedString.length);
+    // clear detection buffer (we've consumed the trigger)
+    detectionRef.current = '';
+  };
+ 
+   // End hidden typing: allow normal typing from now on
+   const endHiddenTyping = (terminatorKey: string) => {
+     // rawTyped = trigger + positionToken + revealedWord
+     const afterTrigger = rawTyped.slice((triggerToken || '').length);
 
-    if (afterRevealed.startsWith(" ")) {
-      // If a space follows, reset & set localStorage
-      const oldWord = localStorage.getItem("word");
-      const oldLetter = localStorage.getItem("letterPosition");
-      const oldSecret = localStorage.getItem("secret");
-      if (
-        oldWord !== revealedString ||
-        oldLetter !== letterPosition ||
-        oldSecret !== matchedTrigger
-      ) {
-        // Only clear per-reveal keys. Preserve profile metadata (finalpage, profileName, coverts, triggers)
-        localStorage.removeItem("word");
-        localStorage.removeItem("letterPosition");
-        localStorage.removeItem("secret");
-        localStorage.removeItem("currentLetterIndex");
-        localStorage.removeItem("lastFetchedPage");
-        localStorage.removeItem("decrementDoneForPage");
+     // Extract position token: either a letter a-f or a sequence of digits at start
+     let positionToken = "";
+     let revealed = afterTrigger;
+     const posMatch = afterTrigger.match(/^([a-fA-F]|\d+)/);
+     if (posMatch) {
+       positionToken = posMatch[1];
+       revealed = afterTrigger.slice(positionToken.length);
+     }
+
+     // Compute letterPosition: if letter a-f => 1..6, else use digits if present, otherwise default "1"
+     let letterPosition = "1";
+     if (positionToken) {
+       if (/^[a-fA-F]$/.test(positionToken)) {
+         letterPosition = ( "abcdef".indexOf(positionToken.toLowerCase()) + 1 ).toString();
+       } else if (/^\d+$/.test(positionToken)) {
+         letterPosition = positionToken;
+       }
+     }
+
+     // Persist reveal-related metadata required by WikiPage
+     try {
+       if (revealed) localStorage.setItem("word", revealed);
+       localStorage.setItem("letterPosition", letterPosition);
+       if (triggerToken) localStorage.setItem("secret", triggerToken);
+       localStorage.setItem("currentLetterIndex", "0");
+       localStorage.setItem("hiddenTyped", rawTyped);
+       if (covertPage) localStorage.setItem("covertPage", covertPage);
+     } catch (err) {
+       DEBUG && console.warn("localStorage write failed in endHiddenTyping", err);
+     }
+
+     // If instantReplace is enabled for this profile, do the full covert replacement only when the typed sequence
+     // contains a position token + a non-empty revealed word and the user confirms with space.
+     if (instantReplace && terminatorKey === " ") {
+       if (revealed && revealed.length > 0) {
+         setSearch(covertPage.toLowerCase());
+         setHiddenTypingActive(false);
+         return;
+       } else {
+         // Not a complete trigger+pos+word pattern: treat the space as a normal space in the visible input
+         setSearch(prev => (prev || '') + ' ');
+         setHiddenTypingActive(false);
+         return;
+       }
+     }
+
+     // Non-instant or other terminator: If the terminator is the first confirming space, do NOT insert that space into the visible input.
+     if (terminatorKey === " ") {
+       setSearch(covertPage.slice(0, rawTyped.length));
+     } else {
+       setSearch(covertPage.slice(0, rawTyped.length) + terminatorKey);
+     }
+
+     // End hidden typing: further input becomes normal
+     setHiddenTypingActive(false);
+   };
+ 
+  // Key down handler: capture triggers and hidden typing keystrokes
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const key = e.key;
+
+    // ignore control/meta keys except Backspace/space/' which we handle
+    if (key === 'Meta' || key === 'Control' || key === 'Alt' || key === 'Escape' || key === 'Tab') {
+      return;
+    }
+
+    // If currently in hidden typing: intercept printable chars & backspace & terminators
+    if (hiddenTypingActive) {
+      if (key === 'Backspace') {
+        e.preventDefault();
+        setRawTyped(prev => {
+          const next = prev.slice(0, -1);
+          // if we removed all (including trigger), cancel hidden typing
+          if (next.length === 0) {
+            setHiddenTypingActive(false);
+            setCovertPage('');
+            setTriggerToken('');
+            setSearch('');
+            try { localStorage.removeItem("hiddenTyped"); } catch {}
+            return '';
+          }
+          // update visible search:
+          // - instantReplace: show what the user typed (rawTyped)
+          // - non-instant: show covert prefix up to number of typed characters
+          if (instantReplace) {
+            setSearch(next);
+          } else {
+            setSearch(covertPage.slice(0, next.length));
+          }
+          try { localStorage.setItem("hiddenTyped", next); } catch {}
+          return next;
+        });
+        return;
       }
 
-      if (revealedString) localStorage.setItem("word", revealedString);
-      if (letterPosition) localStorage.setItem("letterPosition", letterPosition);
-      localStorage.setItem("secret", matchedTrigger);
-      localStorage.setItem("currentLetterIndex", "0");
+      // terminators: space or apostrophe end hidden typing and let user continue normally
+      if (key === ' ' || key === "'") {
+        e.preventDefault();
+        // Only replace on space when pattern matches and instantReplace is true (handled inside endHiddenTyping)
+        endHiddenTyping(key);
+        return;
+      }
 
-      shouldReplace = true;
+      // printable single-character: consume and update visible to match typed sequence or covert prefix
+      if (key.length === 1) {
+        e.preventDefault();
+        setRawTyped(prev => {
+          const next = prev + key;
+          // - instantReplace: display raw typed sequence so user sees what they typed
+          // - non-instant: reveal covert page letter-by-letter (prefix length = typed length)
+          if (instantReplace) {
+            setSearch(next);
+          } else {
+            setSearch(covertPage.slice(0, next.length));
+          }
+          try { localStorage.setItem("hiddenTyped", next); } catch {}
+          return next;
+        });
+        return;
+      }
+
+      // any other key: ignore and let default behavior happen (arrows etc)
+      return;
     }
 
-    if (shouldReplace && activeProfile.coverts) {
-      let randomPage =
-        activeProfile.coverts[
-          Math.floor(Math.random() * activeProfile.coverts.length)
-        ];
-      randomPage = randomPage
-        .toLocaleLowerCase()
-        .replace("/wikipage/", "")
-        .replace("/dicopage/", "")
-        .replace("dicopage/", "")
-        .replace("wikipage/", "");
-      newSearch = randomPage;
-      setSearch(randomPage.toLowerCase());
+    // Not currently in hidden typing: detect multi-char triggers using detectionRef
+    if (key.length === 1) {
+      // append char to detection buffer and trim to maxTriggerLen
+      detectionRef.current = (detectionRef.current + key).slice(-Math.max(1, maxTriggerLen));
+
+      if (cachedConfig?.profiles) {
+        for (const [pname, p] of Object.entries(cachedConfig.profiles)) {
+          for (const trig of (p.triggers || [])) {
+            if (detectionRef.current.endsWith(trig)) {
+              // full trigger matched — start hidden typing with the exact trigger text
+              e.preventDefault();
+              startHiddenTyping(trig, pname, p);
+              return;
+            }
+          }
+        }
+      }
+      // no trigger matched — leave detection buffer as-is (kept to length maxTriggerLen)
+    } else if (key === 'Backspace') {
+      // remove last char from detection buffer
+      detectionRef.current = detectionRef.current.slice(0, -1);
     }
+  };
+
+  // onChange handler: when not in hidden typing, let typing flow into `search`
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (hiddenTypingActive) {
+      // when hidden typing is active we ignore onChange because we control visible output via keydown
+      // Keep displayed `search` consistent (no-op)
+      return;
+    }
+    setSearch(e.target.value);
+  };
+
+  useEffect(() => {
+    // Fetch config only once
+    if (!cachedConfig) {
+      fetch(HOST + "/config/", { method: "GET" })
+        .then((res) => res.json())
+        .then((config: Config) => setCachedConfig(config))
+        .catch(() => console.error("Failed to load config"));
+    }
+  }, [cachedConfig]);
+
+  useEffect(() => {
+    if (!mobileSearchOpen || !search.trim() || !cachedConfig) {
+      setResults([]);
+      return;
+    }
+
+    let newSearch = search;
+    let shouldReplace = false;
+
+    const profiles = cachedConfig.profiles || {};
+    const defaultProfile = profiles.default || {};
+
+    // 🔹 Keep existing profile if already set in localStorage
+    let activeProfileName: string = localStorage.getItem("profileName") || "default";
+    let activeProfile = profiles[activeProfileName] || defaultProfile;
+
+    // 🔹 Detect profile by trigger in the current search
+    for (const [name, profile] of Object.entries(profiles)) {
+      if (profile.triggers?.some((trigger) => search.startsWith(trigger))) {
+        activeProfileName = name;
+        activeProfile = {
+          instantReplace: profile.instantReplace ?? defaultProfile.instantReplace,
+          coverts: profile.coverts ?? defaultProfile.coverts,
+          triggers: profile.triggers ?? defaultProfile.triggers,
+          finalpage: profile.finalpage, // optional
+        };
+        break; // stop at first matched trigger
+      }
+    }
+
+    // 🔹 Save profile info to localStorage
+    if (activeProfile.coverts) localStorage.setItem("coverts", JSON.stringify(activeProfile.coverts));
+    if (activeProfile.triggers) localStorage.setItem("triggers", JSON.stringify(activeProfile.triggers));
+    if (activeProfile.finalpage !== undefined) {
+      localStorage.setItem("finalpage", activeProfile.finalpage);
+    } else {
+      localStorage.removeItem("finalpage"); // remove old value if any
+    }
+    localStorage.setItem("profileName", activeProfileName);
+
+    // 🔹 Parse trigger + position (letter or number)
+    const matchedTrigger = activeProfile.triggers?.find((trigger) =>
+      search.startsWith(trigger)
+    );
+
+    if (matchedTrigger) {
+      const afterTrigger = search.slice(matchedTrigger.length);
+      let letterPosition = "";
+
+      if (/^[a-f]/i.test(afterTrigger[0])) {
+        // If first char after trigger is a letter a-f
+        letterPosition = String("abcdef".indexOf(afterTrigger[0].toLowerCase()) + 1);
+      } else {
+        // If first char(s) after trigger is a number
+        const match = afterTrigger.match(/^(\d+)/);
+        if (match) letterPosition = match[1];
+      }
+
+      // Extract revealed word
+      const rest = afterTrigger.slice(letterPosition.length);
+      const revealedMatch = rest.match(/^([^\s]*)/);
+      const revealedString = revealedMatch ? revealedMatch[1] : "";
+      const afterRevealed = rest.slice(revealedString.length);
+
+      if (afterRevealed.startsWith(" ")) {
+        // If a space follows, reset & set localStorage
+        const oldWord = localStorage.getItem("word");
+        const oldLetter = localStorage.getItem("letterPosition");
+        const oldSecret = localStorage.getItem("secret");
+        if (
+          oldWord !== revealedString ||
+          oldLetter !== letterPosition ||
+          oldSecret !== matchedTrigger
+        ) {
+          // Only clear per-reveal keys. Preserve profile metadata (finalpage, profileName, coverts, triggers)
+          localStorage.removeItem("word");
+          localStorage.removeItem("letterPosition");
+          localStorage.removeItem("secret");
+          localStorage.removeItem("currentLetterIndex");
+          localStorage.removeItem("lastFetchedPage");
+          localStorage.removeItem("decrementDoneForPage");
+        }
+
+        if (revealedString) localStorage.setItem("word", revealedString);
+        if (letterPosition) localStorage.setItem("letterPosition", letterPosition);
+        localStorage.setItem("secret", matchedTrigger);
+        localStorage.setItem("currentLetterIndex", "0");
+
+        shouldReplace = true;
+      }
+
+      if (shouldReplace && activeProfile.coverts) {
+        let randomPage =
+          activeProfile.coverts[
+            Math.floor(Math.random() * activeProfile.coverts.length)
+          ];
+        randomPage = randomPage
+          .toLocaleLowerCase()
+          .replace("/wikipage/", "")
+          .replace("/dicopage/", "")
+          .replace("dicopage/", "")
+          .replace("wikipage/", "");
+        newSearch = randomPage;
+        setSearch(randomPage.toLowerCase());
+      }
+    }
+
+    // 🔹 Wikipedia search
+    setLoading(true);
+    fetch(
+      `https://fr.wikipedia.org/w/rest.php/v1/search/page?q=${encodeURIComponent(
+        newSearch
+      )}&limit=10&suggest=true`
+    )
+      .then((res) => res.json())
+      .then((data) => setResults(data.pages || []))
+      .catch(() => setResults([]))
+      .finally(() => {
+        setLoading(false);
+        DEBUG && console.log("localStorage after profile update:", localStorage);
+      });
+  }, [search, mobileSearchOpen, cachedConfig]);
+
+
+  function handleBackButton(_event: React.MouseEvent<HTMLButtonElement>): void {
+    setMobileSearchOpen(false);
   }
-
-  // 🔹 Wikipedia search
-  setLoading(true);
-  fetch(
-    `https://fr.wikipedia.org/w/rest.php/v1/search/page?q=${encodeURIComponent(
-      newSearch
-    )}&limit=10&suggest=true`
-  )
-    .then((res) => res.json())
-    .then((data) => setResults(data.pages || []))
-    .catch(() => setResults([]))
-    .finally(() => {
-      setLoading(false);
-      DEBUG && console.log("localStorage after profile update:", localStorage);
-    });
-}, [search, mobileSearchOpen, cachedConfig]);
-
+  
+  function handleSearchButton(_event: React.MouseEvent<HTMLButtonElement>): void {
+    setMobileSearchOpen(true);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
+  }
 
   return (
       <header
@@ -245,7 +481,7 @@ useEffect(() => {
           </div>
         </div>
         {/* Desktop search bar */}
-        <form className="flex-1 items-center justify-center mx-4 hidden md:flex" role="search">
+        <form className="flex-1 items-center justify-center mx-4 hidden md:flex" role="search" onSubmit={(e)=>e.preventDefault()}>
           <div className="relative w-full max-w-md flex">
             <input
               type="search"
@@ -253,7 +489,9 @@ useEffect(() => {
               placeholder="Rechercher sur Wikipédia"
               aria-label="Rechercher sur Wikipédia"
               style={{ height: "38px", fontSize: "1rem" }}
-              onChange={e => setSearch(e.target.value)}
+              value={search}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
             />
             <button
               type="submit"
@@ -420,7 +658,8 @@ useEffect(() => {
                 borderWidth: "2px"
               }}
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
             />
           </div>
           {/* Search results and sticky bar */}

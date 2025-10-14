@@ -11,6 +11,7 @@ type Profile = {
   coverts: string[];
   triggers: string[];
   finalpage?: string;
+  instantReplace?: boolean;
 };
 
 type Config = {
@@ -141,6 +142,19 @@ router.post(
         }
 
         target[param] = value;
+        break;
+
+      case "instantReplace":
+        // Accept boolean or string values ("true"/"false" or "1"/"0")
+        if (typeof value === "string") {
+          const v = value.toLowerCase();
+          if (v === "true" || v === "1") value = true;
+          else if (v === "false" || v === "0") value = false;
+          else value = Boolean(value);
+        } else {
+          value = Boolean(value);
+        }
+        target.instantReplace = value;
         break;
 
       case "finalpage":

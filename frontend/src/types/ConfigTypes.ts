@@ -5,6 +5,7 @@ export type error = {
 
 // Types
 export type Profile = {
+  instantReplace: boolean;
   coverts: string[];
   triggers: string[];
   finalpage?: string;
