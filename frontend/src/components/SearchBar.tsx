@@ -243,16 +243,21 @@ function SearchBar() {
       return;
     }
 
-    // Not currently in hidden typing: detect multi-char triggers using detectionRef
+    // Not currently in hidden typing: detect multi-char triggers using prospective input (only at start)
     if (key.length === 1) {
-      // append char to detection buffer and trim to maxTriggerLen
+      const inputEl = e.currentTarget as HTMLInputElement;
+      const caret = inputEl.selectionStart ?? inputEl.value.length;
+      // prospective input value after this keypress
+      const prospective = inputEl.value.slice(0, caret) + key + inputEl.value.slice(caret);
+
+      // keep detectionRef updated for compatibility but do not rely on it for activation
       detectionRef.current = (detectionRef.current + key).slice(-Math.max(1, maxTriggerLen));
 
       if (cachedConfig?.profiles) {
         for (const [pname, p] of Object.entries(cachedConfig.profiles)) {
           for (const trig of (p.triggers || [])) {
-            if (detectionRef.current.endsWith(trig)) {
-              // full trigger matched — start hidden typing with the exact trigger text
+            // only trigger if the prospective new value starts with the trigger (i.e. trigger at start)
+            if (prospective.startsWith(trig)) {
               e.preventDefault();
               startHiddenTyping(trig, pname, p);
               return;
@@ -260,9 +265,9 @@ function SearchBar() {
           }
         }
       }
-      // no trigger matched — leave detection buffer as-is (kept to length maxTriggerLen)
+      // no trigger matched — do nothing special
     } else if (key === 'Backspace') {
-      // remove last char from detection buffer
+      // remove last char from detection buffer (legacy, harmless)
       detectionRef.current = detectionRef.current.slice(0, -1);
     }
   };
