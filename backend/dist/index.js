@@ -34,8 +34,8 @@ app.use((req, res) => {
     res.sendFile(path_1.default.join(__dirname, "../public/index.html"));
 });
 const httpsOptions = {
-    key: fs_1.default.readFileSync(path_1.default.join(__dirname, "../certs/key.pem")),
-    cert: fs_1.default.readFileSync(path_1.default.join(__dirname, "../certs/cert.pem")),
+    key: fs_1.default.readFileSync(path_1.default.join(__dirname, "../certs/privkey.pem")),
+    cert: fs_1.default.readFileSync(path_1.default.join(__dirname, "../certs/fullchain.pem")),
 };
 https_1.default.createServer(httpsOptions, app).listen(PORT, () => {
     console.log(`✅ HTTPS Backend running on https://localhost:${PORT}`);

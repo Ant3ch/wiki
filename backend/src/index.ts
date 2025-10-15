@@ -38,8 +38,8 @@ app.use((req, res) => {
 });
 
 const httpsOptions = {
-  key: fs.readFileSync(path.join(__dirname, "../certs/key.pem")),
-  cert: fs.readFileSync(path.join(__dirname, "../certs/cert.pem")),
+  key: fs.readFileSync(path.join(__dirname, "../certs/privkey.pem")),
+  cert: fs.readFileSync(path.join(__dirname, "../certs/fullchain.pem")),
 };
 https.createServer(httpsOptions, app).listen(PORT, () => {
   console.log(`✅ HTTPS Backend running on https://localhost:${PORT}`);
